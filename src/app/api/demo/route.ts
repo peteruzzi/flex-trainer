@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { SESSION_COOKIE_NAME } from "@/lib/auth";
 
 const DEMO_USER_EMAIL = "peter@demo.flextrainer.app";
 const DEMO_USER_NAME = "Peter";
@@ -41,19 +42,20 @@ export async function POST() {
       },
     });
 
-    // Set cookies via response headers for better control
+    // Set cookie using the same name NextAuth expects
     const isProduction = process.env.NODE_ENV === "production";
     const response = NextResponse.json({ success: true });
     
-    // NextAuth v5 beta uses "authjs.session-token" without __Secure- prefix by default
-    // But we need to set both to be safe
-    const cookieOptions = `Path=/; HttpOnly; SameSite=Lax; Expires=${expires.toUTCString()}${isProduction ? "; Secure" : ""}`;
+    const cookieValue = [
+      `${SESSION_COOKIE_NAME}=${sessionToken}`,
+      `Path=/`,
+      `HttpOnly`,
+      `SameSite=Lax`,
+      `Expires=${expires.toUTCString()}`,
+      isProduction ? "Secure" : "",
+    ].filter(Boolean).join("; ");
     
-    // Set multiple cookie variations to ensure compatibility
-    response.headers.append("Set-Cookie", `authjs.session-token=${sessionToken}; ${cookieOptions}`);
-    if (isProduction) {
-      response.headers.append("Set-Cookie", `__Secure-authjs.session-token=${sessionToken}; ${cookieOptions}`);
-    }
+    response.headers.set("Set-Cookie", cookieValue);
 
     return response;
   } catch (error) {
