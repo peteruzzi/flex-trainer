@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { encode } from "next-auth/jwt";
 
 const DEMO_USER_EMAIL = "peter@demo.flextrainer.app";
 const DEMO_USER_NAME = "Peter";
@@ -13,6 +12,8 @@ export async function POST() {
       where: { email: DEMO_USER_EMAIL },
     });
 
+    const isNewUser = !user;
+    
     if (!user) {
       user = await prisma.user.create({
         data: {
@@ -21,10 +22,10 @@ export async function POST() {
           emailVerified: new Date(),
         },
       });
-
-      // Seed demo user's workouts
-      await seedDemoWorkouts(user.id);
     }
+
+    // Seed demo user's workouts (always refresh for demo)
+    await seedDemoWorkouts(user.id);
 
     // Create a session for the demo user
     const sessionToken = crypto.randomUUID();
@@ -38,20 +39,23 @@ export async function POST() {
       },
     });
 
-    // Set the session cookie
+    // Set the session cookie - use correct cookie name for production
     const cookieStore = await cookies();
-    cookieStore.set("authjs.session-token", sessionToken, {
+    const isSecure = process.env.NODE_ENV === "production";
+    const cookieName = isSecure ? "__Secure-authjs.session-token" : "authjs.session-token";
+    
+    cookieStore.set(cookieName, sessionToken, {
       expires,
       httpOnly: true,
       sameSite: "lax",
       path: "/",
-      secure: process.env.NODE_ENV === "production",
+      secure: isSecure,
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Demo setup error:", error);
-    return NextResponse.json({ error: "Failed to setup demo" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to setup demo", details: String(error) }, { status: 500 });
   }
 }
 
