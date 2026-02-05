@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
-import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +18,6 @@ import type { WorkoutType, PilatesClassType, CrossFitTag, Exercise, Location } f
 export default function LogWorkoutPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data: session, status } = useSession();
 
   const [workoutType, setWorkoutType] = useState<WorkoutType | null>(null);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -72,18 +69,6 @@ export default function LogWorkoutPage() {
       toast.error("Failed to log workout");
     },
   });
-
-  if (status === "loading") {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin text-2xl">💪</div>
-      </div>
-    );
-  }
-
-  if (!session) {
-    redirect("/login");
-  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

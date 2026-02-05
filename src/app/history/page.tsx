@@ -1,14 +1,12 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
-import { redirect, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { WorkoutCard } from "@/components/history/workout-card";
 import type { Workout } from "@/types";
 
 export default function HistoryPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
 
   const { data: workouts = [], isLoading } = useQuery<Workout[]>({
     queryKey: ["workouts"],
@@ -17,20 +15,7 @@ export default function HistoryPage() {
       if (!res.ok) throw new Error("Failed to fetch workouts");
       return res.json();
     },
-    enabled: !!session,
   });
-
-  if (status === "loading") {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin text-2xl">💪</div>
-      </div>
-    );
-  }
-
-  if (!session) {
-    redirect("/login");
-  }
 
   return (
     <div className="min-h-screen pb-24">

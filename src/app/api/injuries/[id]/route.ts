@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateDemoUser } from "@/lib/demo-user";
 
 export async function PATCH(
   request: NextRequest,
@@ -8,8 +9,10 @@ export async function PATCH(
 ) {
   const session = await auth();
   
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let userId = session?.user?.id;
+  if (!userId) {
+    const demoUser = await getOrCreateDemoUser();
+    userId = demoUser.id;
   }
 
   const { id } = await params;
@@ -17,7 +20,7 @@ export async function PATCH(
   
   // Verify ownership
   const existing = await prisma.injury.findFirst({
-    where: { id, userId: session.user.id },
+    where: { id, userId },
   });
   
   if (!existing) {
@@ -45,15 +48,17 @@ export async function DELETE(
 ) {
   const session = await auth();
   
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let userId = session?.user?.id;
+  if (!userId) {
+    const demoUser = await getOrCreateDemoUser();
+    userId = demoUser.id;
   }
 
   const { id } = await params;
   
   // Verify ownership
   const existing = await prisma.injury.findFirst({
-    where: { id, userId: session.user.id },
+    where: { id, userId },
   });
   
   if (!existing) {

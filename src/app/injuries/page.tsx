@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
-import { redirect, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InjuryCard } from "@/components/injuries/injury-card";
@@ -14,7 +13,6 @@ import { toast } from "sonner";
 export default function InjuriesPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data: session, status } = useSession();
   const [showAddForm, setShowAddForm] = useState(false);
 
   const { data: injuries = [], isLoading } = useQuery<Injury[]>({
@@ -24,7 +22,6 @@ export default function InjuriesPage() {
       if (!res.ok) throw new Error("Failed to fetch injuries");
       return res.json();
     },
-    enabled: !!session,
   });
 
   const addMutation = useMutation({
@@ -77,18 +74,6 @@ export default function InjuriesPage() {
       toast.success("Injury deleted");
     },
   });
-
-  if (status === "loading") {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin text-2xl">💪</div>
-      </div>
-    );
-  }
-
-  if (!session) {
-    redirect("/login");
-  }
 
   const activeInjuries = injuries.filter(i => i.status === "active" || i.status === "recovering");
   const resolvedInjuries = injuries.filter(i => i.status === "resolved");

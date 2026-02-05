@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateDemoUser } from "@/lib/demo-user";
 
 export async function GET() {
   const session = await auth();
   
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let userId = session?.user?.id;
+  if (!userId) {
+    const demoUser = await getOrCreateDemoUser();
+    userId = demoUser.id;
   }
 
   const records = await prisma.personalRecord.findMany({
-    where: { userId: session.user.id },
+    where: { userId },
     orderBy: { displayName: "asc" },
   });
 
@@ -20,8 +23,10 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const session = await auth();
   
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let userId = session?.user?.id;
+  if (!userId) {
+    const demoUser = await getOrCreateDemoUser();
+    userId = demoUser.id;
   }
 
   const body = await request.json();
@@ -31,7 +36,7 @@ export async function POST(request: NextRequest) {
   const record = await prisma.personalRecord.upsert({
     where: {
       userId_exerciseName: {
-        userId: session.user.id,
+        userId,
         exerciseName,
       },
     },
@@ -42,7 +47,7 @@ export async function POST(request: NextRequest) {
       notes: body.notes || null,
     },
     create: {
-      userId: session.user.id,
+      userId,
       exerciseName,
       displayName: body.displayName,
       maxWeight: body.maxWeight,

@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateDemoUser } from "@/lib/demo-user";
 
 export async function GET() {
   const session = await auth();
   
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let userId = session?.user?.id;
+  if (!userId) {
+    const demoUser = await getOrCreateDemoUser();
+    userId = demoUser.id;
   }
 
   const workouts = await prisma.workout.findMany({
-    where: { userId: session.user.id },
+    where: { userId },
     include: { location: true },
     orderBy: { date: "desc" },
   });
@@ -21,15 +24,17 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const session = await auth();
   
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let userId = session?.user?.id;
+  if (!userId) {
+    const demoUser = await getOrCreateDemoUser();
+    userId = demoUser.id;
   }
 
   const body = await request.json();
   
   const workout = await prisma.workout.create({
     data: {
-      userId: session.user.id,
+      userId,
       type: body.type,
       date: new Date(body.date),
       locationId: body.locationId || null,
