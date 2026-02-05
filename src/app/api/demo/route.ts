@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
 const DEMO_USER_EMAIL = "peter@demo.flextrainer.app";
@@ -11,8 +10,6 @@ export async function POST() {
     let user = await prisma.user.findUnique({
       where: { email: DEMO_USER_EMAIL },
     });
-
-    const isNewUser = !user;
     
     if (!user) {
       user = await prisma.user.create({
@@ -31,6 +28,11 @@ export async function POST() {
     const sessionToken = crypto.randomUUID();
     const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
+    // Delete any existing sessions for this user
+    await prisma.session.deleteMany({
+      where: { userId: user.id },
+    });
+
     await prisma.session.create({
       data: {
         sessionToken,
@@ -39,20 +41,21 @@ export async function POST() {
       },
     });
 
-    // Set the session cookie - use correct cookie name for production
-    const cookieStore = await cookies();
-    const isSecure = process.env.NODE_ENV === "production";
-    const cookieName = isSecure ? "__Secure-authjs.session-token" : "authjs.session-token";
+    // Set cookies via response headers for better control
+    const isProduction = process.env.NODE_ENV === "production";
+    const response = NextResponse.json({ success: true });
     
-    cookieStore.set(cookieName, sessionToken, {
-      expires,
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      secure: isSecure,
-    });
+    // NextAuth v5 beta uses "authjs.session-token" without __Secure- prefix by default
+    // But we need to set both to be safe
+    const cookieOptions = `Path=/; HttpOnly; SameSite=Lax; Expires=${expires.toUTCString()}${isProduction ? "; Secure" : ""}`;
+    
+    // Set multiple cookie variations to ensure compatibility
+    response.headers.append("Set-Cookie", `authjs.session-token=${sessionToken}; ${cookieOptions}`);
+    if (isProduction) {
+      response.headers.append("Set-Cookie", `__Secure-authjs.session-token=${sessionToken}; ${cookieOptions}`);
+    }
 
-    return NextResponse.json({ success: true });
+    return response;
   } catch (error) {
     console.error("Demo setup error:", error);
     return NextResponse.json({ error: "Failed to setup demo", details: String(error) }, { status: 500 });
