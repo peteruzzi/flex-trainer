@@ -2,7 +2,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useSession, signOut } from "next-auth/react";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { WeeklySummary } from "@/components/dashboard/weekly-summary";
@@ -11,6 +10,10 @@ import { AIRecommendationCard } from "@/components/dashboard/ai-recommendation-c
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
+  
+  // For demo purposes, always allow access - APIs will use demo user if no session
+  const isDemo = !session && status !== "loading";
+  const userName = session?.user?.name || "Peter";
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["stats"],
@@ -19,7 +22,6 @@ export default function DashboardPage() {
       if (!res.ok) throw new Error("Failed to fetch stats");
       return res.json();
     },
-    enabled: !!session,
   });
 
   const { data: recommendation, isLoading: recLoading } = useQuery({
@@ -29,7 +31,6 @@ export default function DashboardPage() {
       if (!res.ok) throw new Error("Failed to fetch recommendation");
       return res.json();
     },
-    enabled: !!session,
   });
 
   if (status === "loading") {
@@ -40,10 +41,6 @@ export default function DashboardPage() {
     );
   }
 
-  if (!session) {
-    redirect("/login");
-  }
-
   return (
     <div className="min-h-screen pb-24">
       {/* Header */}
@@ -52,12 +49,20 @@ export default function DashboardPage() {
           <div>
             <h1 className="font-bold text-lg">💪 Flex Trainer</h1>
             <p className="text-xs text-muted-foreground">
-              Hey, {session.user?.name || "Athlete"}!
+              Hey, {userName}!{isDemo && " (Demo Mode)"}
             </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => signOut()}>
-            Sign out
-          </Button>
+          {session ? (
+            <Button variant="ghost" size="sm" onClick={() => signOut()}>
+              Sign out
+            </Button>
+          ) : (
+            <Link href="/login">
+              <Button variant="ghost" size="sm">
+                Sign in
+              </Button>
+            </Link>
+          )}
         </div>
       </header>
 

@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateRecommendation } from "@/lib/ai-mock";
+import { getOrCreateDemoUser } from "@/lib/demo-user";
 
 export async function GET() {
   const session = await auth();
   
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Use demo user if no session
+  let userId = session?.user?.id;
+  if (!userId) {
+    const demoUser = await getOrCreateDemoUser();
+    userId = demoUser.id;
   }
 
   // Get recent workouts (last 30 days)
@@ -16,7 +20,7 @@ export async function GET() {
   
   const workouts = await prisma.workout.findMany({
     where: {
-      userId: session.user.id,
+      userId,
       date: { gte: thirtyDaysAgo },
     },
     orderBy: { date: "desc" },
@@ -27,7 +31,7 @@ export async function GET() {
   // Get active/recovering injuries
   const injuries = await prisma.injury.findMany({
     where: {
-      userId: session.user.id,
+      userId,
       status: { in: ["active", "recovering"] },
     },
   });

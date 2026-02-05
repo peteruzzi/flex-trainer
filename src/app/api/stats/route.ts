@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateMuscleBalance, findImbalances } from "@/lib/muscle-mapping";
+import { getOrCreateDemoUser } from "@/lib/demo-user";
 
 export async function GET() {
   const session = await auth();
   
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Use demo user if no session (for demo mode)
+  let userId = session?.user?.id;
+  if (!userId) {
+    const demoUser = await getOrCreateDemoUser();
+    userId = demoUser.id;
   }
 
   const now = new Date();
@@ -17,7 +21,7 @@ export async function GET() {
   // Weekly workouts
   const weeklyWorkouts = await prisma.workout.findMany({
     where: {
-      userId: session.user.id,
+      userId,
       date: { gte: sevenDaysAgo },
     },
     include: { location: true },
@@ -27,7 +31,7 @@ export async function GET() {
   // Monthly workouts for balance
   const monthlyWorkouts = await prisma.workout.findMany({
     where: {
-      userId: session.user.id,
+      userId,
       date: { gte: thirtyDaysAgo },
     },
   });
@@ -44,7 +48,7 @@ export async function GET() {
 
   // Total counts
   const totalWorkouts = await prisma.workout.count({
-    where: { userId: session.user.id },
+    where: { userId },
   });
 
   return NextResponse.json({
